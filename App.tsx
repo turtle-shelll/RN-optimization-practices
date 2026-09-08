@@ -1,17 +1,21 @@
-import React, { Suspense, useState, useEffect, Profiler } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import {
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-// ⚠️ IMPORTANT: Notice we do NOT statically import HeavyComponent at the top!
-// Statically importing it would evaluate it at startup and cancel the lazy benefit.
+// ============================================================
+// 👇 CHANGE THIS LINE BETWEEN 'slow' AND 'fast' TO SEE THE
+//    VISIBLE DIFFERENCE IN LAUNCH TIME — THEN RELOAD APP
+// ============================================================
+// Cast to string so TypeScript doesn't narrow comparisons to unreachable
+const DEMO_MODE: string = 'fast' satisfies 'slow' | 'fast';
+// ============================================================
 
 const getTime = (): number => {
   // @ts-ignore
@@ -22,228 +26,272 @@ const getTime = (): number => {
   return Date.now();
 };
 
-const APP_INIT_TIME = getTime();
+// ─── SLOW PATH ────────────────────────────────────────────────────────────────
+// This code runs at the MODULE EVALUATION level (before App even mounts).
+// It simulates importing a heavy library that does expensive work at startup.
+// The JS thread is completely blocked; the user sees a WHITE/FROZEN screen.
+let SLOW_PATH_BLOCKING_MS = 0;
 
-// 💤 Lazy-loaded component via dynamic import
-const LazyHeavyComponent = React.lazy(
-  () =>
-    new Promise<{ default: React.ComponentType<any> }>((resolve) => {
-      // Small simulated delay to clearly illustrate the Suspense boundary
-      setTimeout(() => {
-        resolve(import('./components/HeavyComponent'));
-      }, 500);
-    })
+if (DEMO_MODE === 'slow') {
+  const blockStart = getTime();
+
+  // Simulate heavy module-level computation (library init, JSON parsing, etc.)
+  let sink = 0;
+  for (let i = 0; i < 6_000_000; i++) {
+    sink = (sink + i * 3) % 1_000_000;
+  }
+  // Also statically require the heavy component so it is parsed now
+  require('./components/HeavyComponent');
+
+  SLOW_PATH_BLOCKING_MS = getTime() - blockStart;
+}
+
+// ─── FAST PATH ────────────────────────────────────────────────────────────────
+// The heavy component is NOT touched at startup.
+// React.lazy defers the import until the component is needed by the renderer.
+const LazyHeavyComponent = React.lazy(() =>
+  import('./components/HeavyComponent')
 );
 
-// Synchronous version loaded on-demand using standard require
-let CachedSyncComponent: React.ComponentType<any> | null = null;
-const getSyncComponent = () => {
-  if (!CachedSyncComponent) {
-    CachedSyncComponent = require('./components/HeavyComponent').default;
-  }
-  return CachedSyncComponent;
-};
+// Capture the true JS bundle-evaluation → render start gap
+const MODULE_EVAL_TIME = getTime();
 
-// 🔄 Fallback component shown while loading
+// ─── FALLBACK ─────────────────────────────────────────────────────────────────
 const LoadingFallback = () => (
-  <View style={styles.fallbackContainer}>
-    <ActivityIndicator size="small" color="#2563eb" />
-    <Text style={styles.fallbackText}>Suspense Active: Showing instant fallback UI...</Text>
+  <View style={styles.fallback}>
+    <ActivityIndicator size="large" color="#2563eb" />
+    <Text style={styles.fallbackText}>Loading heavy component...</Text>
+    <Text style={styles.fallbackSub}>(App shell is already visible — UI is not frozen)</Text>
   </View>
 );
 
+// ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 function MainScreen() {
-  const [testMode, setTestMode] = useState<'idle' | 'sync' | 'lazy'>('idle');
-  const [initialAppBoot, setInitialAppBoot] = useState<number | null>(null);
+  const [shellPaintTime, setShellPaintTime] = useState<number | null>(null);
+  const [componentReadyTime, setComponentReadyTime] = useState<number | null>(null);
+  const mountStart = React.useRef(getTime());
 
-  // Profiler metrics
-  const [renderMetrics, setRenderMetrics] = useState<{
-    mode: string;
-    actualDuration: number;
-    baseDuration: number;
-    firstPaintDelay: number;
-  } | null>(null);
-
-  const [mountStartTime, setMountStartTime] = useState<number>(0);
-
-  // Measure initial App Shell Mount
+  // Measure when the first frame (shell) paints
   useEffect(() => {
-    const bootTime = getTime() - APP_INIT_TIME;
-    setInitialAppBoot(bootTime);
-    console.log(`[Shell Boot] App shell mounted in: ${bootTime.toFixed(2)}ms`);
+    const shellMs = getTime() - MODULE_EVAL_TIME;
+    setShellPaintTime(shellMs);
+    console.log(`[${DEMO_MODE.toUpperCase()}] Shell visible in: ${shellMs.toFixed(0)}ms`);
   }, []);
 
-  const handleRunSync = () => {
-    setRenderMetrics(null);
-    const start = getTime();
-    setMountStartTime(start);
-    setTestMode('sync');
+  // Measure when the heavy component finishes mounting
+  const onHeavyMounted = () => {
+    const total = getTime() - mountStart.current;
+    setComponentReadyTime(total);
+    console.log(`[${DEMO_MODE.toUpperCase()}] Heavy component ready in: ${total.toFixed(0)}ms`);
   };
 
-  const handleRunLazy = () => {
-    setRenderMetrics(null);
-    const start = getTime();
-    setMountStartTime(start);
-    setTestMode('lazy');
-  };
-
-  const handleReset = () => {
-    setTestMode('idle');
-    setRenderMetrics(null);
-  };
-
-  const handleProfilerRender: React.ProfilerOnRenderCallback = (
-    id,
-    phase,
-    actualDuration,
-    baseDuration
-  ) => {
-    const totalLatency = getTime() - mountStartTime;
-    setTimeout(() => {
-      setRenderMetrics({
-        mode: id,
-        actualDuration,
-        baseDuration,
-        firstPaintDelay: totalLatency,
-      });
-    }, 0);
-  };
-
-  const SyncComponent = testMode === 'sync' ? getSyncComponent() : null;
+  const isSlow = DEMO_MODE === 'slow';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Sync vs. Lazy Benchmark</Text>
-          <Text style={styles.headerSubtitle}>
-            Understand how Lazy + Suspense prevents thread blocking
+      <ScrollView contentContainerStyle={styles.scroll}>
+
+        {/* ── MODE BADGE ── */}
+        <View style={[styles.modeBadge, isSlow ? styles.badgeSlow : styles.badgeFast]}>
+          <Text style={styles.modeIcon}>{isSlow ? '🐌' : '🚀'}</Text>
+          <Text style={styles.modeLabel}>
+            {isSlow ? 'SLOW MODE — No Optimization' : 'FAST MODE — Lazy + Suspense'}
           </Text>
         </View>
 
-        {/* Base App Shell Boot Time */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📱 App Shell Startup</Text>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricLabel}>Time to First Screen (Shell):</Text>
-            <Text style={styles.metricHighlight}>
-              {initialAppBoot !== null ? `${initialAppBoot.toFixed(2)} ms` : 'Measuring...'}
+        {/* ── INSTRUCTION ── */}
+        <View style={styles.instructionCard}>
+          <Text style={styles.instructionTitle}>How to see the difference manually:</Text>
+          <Text style={styles.instructionStep}>
+            <Text style={styles.boldText}>Step 1:</Text> Open{' '}
+            <Text style={styles.codeText}>App.tsx</Text> line 17
+          </Text>
+          <Text style={styles.instructionStep}>
+            <Text style={styles.boldText}>Step 2:</Text> Change{' '}
+            <Text style={styles.codeText}>{`'fast'`}</Text> → <Text style={styles.codeText}>{`'slow'`}</Text>{' '}
+            (or vice versa)
+          </Text>
+          <Text style={styles.instructionStep}>
+            <Text style={styles.boldText}>Step 3:</Text> Press <Text style={styles.codeText}>R R</Text>{' '}
+            in Metro terminal (Full Reload) to restart the JS runtime
+          </Text>
+          <Text style={styles.instructionStep}>
+            <Text style={styles.boldText}>Step 4:</Text> Watch how long the screen stays white/frozen
+            before anything appears
+          </Text>
+        </View>
+
+        {/* ── TIMING DASHBOARD ── */}
+        <View style={[styles.timingCard, isSlow ? styles.timingCardSlow : styles.timingCardFast]}>
+          <Text style={styles.timingTitle}>
+            {isSlow ? '⚠️ Performance Timeline (SLOW)' : '✅ Performance Timeline (FAST)'}
+          </Text>
+
+          {isSlow && (
+            <View style={styles.timingRow}>
+              <Text style={styles.timingLabel}>🔴 JS Thread Blocked at Startup:</Text>
+              <Text style={[styles.timingValue, styles.slowValue]}>
+                {SLOW_PATH_BLOCKING_MS.toFixed(0)} ms
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.timingRow}>
+            <Text style={styles.timingLabel}>
+              {isSlow ? '🔴 Time to First Visible UI:' : '🟢 Time to First Visible UI:'}
+            </Text>
+            <Text style={[styles.timingValue, isSlow ? styles.slowValue : styles.fastValue]}>
+              {shellPaintTime !== null ? `${shellPaintTime.toFixed(0)} ms` : '...'}
             </Text>
           </View>
-        </View>
 
-        {/* Benchmark Selector */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🔬 Run Performance Test</Text>
-          <Text style={styles.cardDescription}>
-            Compare mounting 800 heavy computational nodes synchronously vs through Suspense + Lazy:
-          </Text>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.syncButton, testMode === 'sync' && styles.buttonActive]}
-              onPress={handleRunSync}
-            >
-              <Text style={styles.buttonText}>1. Without Lazy (Sync)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.lazyButton, testMode === 'lazy' && styles.buttonActive]}
-              onPress={handleRunLazy}
-            >
-              <Text style={styles.buttonText}>2. With Lazy + Suspense</Text>
-            </TouchableOpacity>
+          <View style={styles.timingRow}>
+            <Text style={styles.timingLabel}>⚡ Heavy Component Ready:</Text>
+            <Text style={styles.timingValue}>
+              {componentReadyTime !== null ? `${componentReadyTime.toFixed(0)} ms` : '...'}
+            </Text>
           </View>
 
-          {testMode !== 'idle' && (
-            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-              <Text style={styles.resetButtonText}>Reset / Clear</Text>
-            </TouchableOpacity>
+          {isSlow && (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>
+                🥶 The screen was WHITE and FROZEN for{' '}
+                <Text style={styles.boldText}>{SLOW_PATH_BLOCKING_MS.toFixed(0)} ms</Text> before
+                ANY UI appeared. That is the JS thread being blocked by synchronous module work.
+              </Text>
+            </View>
+          )}
+
+          {!isSlow && (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>
+                🎉 The app shell appeared in under{' '}
+                <Text style={styles.boldText}>{shellPaintTime !== null ? `${shellPaintTime.toFixed(0)}ms` : '...'}</Text>.
+                The spinner was visible immediately while HeavyComponent loaded in the background.
+              </Text>
+            </View>
           )}
         </View>
 
-        {/* Live Profiler Results */}
-        {renderMetrics && (
-          <View style={[styles.card, styles.resultsCard]}>
-            <Text style={styles.resultsTitle}>
-              📊 Results for: {renderMetrics.mode === 'SyncProfiler' ? 'Without Lazy (Sync)' : 'With Lazy + Suspense'}
+        {/* ── VISUAL TIMELINE BAR ── */}
+        {shellPaintTime !== null && componentReadyTime !== null && (
+          <View style={styles.timelineCard}>
+            <Text style={styles.timelineTitle}>📊 Visual Timeline</Text>
+
+            {isSlow && (
+              <>
+                <Text style={styles.timelineLabel}>🔴 Blocking startup work</Text>
+                <View style={styles.barBg}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      styles.barRed,
+                      {
+                        width: `${Math.min(100, (SLOW_PATH_BLOCKING_MS / (componentReadyTime || 1)) * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.barCaption}>{SLOW_PATH_BLOCKING_MS.toFixed(0)} ms — User sees white screen</Text>
+              </>
+            )}
+
+            <Text style={styles.timelineLabel}>
+              {isSlow ? '🟡 Shell + Heavy (same blocking render)' : '🟢 Shell visible (Suspense fallback)'}
             </Text>
-
-            <View style={styles.metricRow}>
-              <Text style={styles.metricLabel}>Render Cost (actualDuration):</Text>
-              <Text style={styles.metricValue}>{renderMetrics.actualDuration.toFixed(2)} ms</Text>
+            <View style={styles.barBg}>
+              <View
+                style={[
+                  styles.barFill,
+                  isSlow ? styles.barOrange : styles.barGreen,
+                  {
+                    width: `${Math.min(100, (shellPaintTime / (componentReadyTime || 1)) * 100)}%`,
+                  },
+                ]}
+              />
             </View>
+            <Text style={styles.barCaption}>{shellPaintTime.toFixed(0)} ms</Text>
 
-            <View style={styles.metricRow}>
-              <Text style={styles.metricLabel}>Subtree Complexity (baseDuration):</Text>
-              <Text style={styles.metricValue}>{renderMetrics.baseDuration.toFixed(2)} ms</Text>
+            <Text style={styles.timelineLabel}>⚡ Heavy component mounted & rendered</Text>
+            <View style={styles.barBg}>
+              <View style={[styles.barFill, styles.barBlue, { width: '100%' }]} />
             </View>
-
-            <View style={styles.metricRow}>
-              <Text style={styles.metricLabel}>Total Mount Latency:</Text>
-              <Text style={styles.metricValue}>{renderMetrics.firstPaintDelay.toFixed(2)} ms</Text>
-            </View>
-
-            <View style={styles.explanationBox}>
-              {renderMetrics.mode === 'SyncProfiler' ? (
-                <Text style={styles.explanationText}>
-                  ⚠️ <Text style={styles.boldText}>Without Lazy:</Text> The JavaScript engine had to
-                  build all 800 nodes in one synchronous blocking pass before updating the screen.
-                </Text>
-              ) : (
-                <Text style={styles.explanationText}>
-                  ✅ <Text style={styles.boldText}>With Lazy + Suspense:</Text> The UI showed the
-                  fallback spinner immediately, keeping the JS thread unblocked while preparing the heavy module.
-                </Text>
-              )}
-            </View>
+            <Text style={styles.barCaption}>{componentReadyTime.toFixed(0)} ms total</Text>
           </View>
         )}
 
-        {/* Component Display Area */}
-        {testMode === 'sync' && SyncComponent && (
-          <Profiler id="SyncProfiler" onRender={handleProfilerRender}>
-            <SyncComponent />
-          </Profiler>
+        {/* ── HEAVY COMPONENT ── */}
+        {isSlow ? (
+          // In SLOW mode: render synchronously (no lazy, no suspense — no fallback UI possible)
+          <SlowHeavyWrapper onMounted={onHeavyMounted} />
+        ) : (
+          // In FAST mode: React shows fallback spinner instantly, loads heavy component async
+          <Suspense fallback={<LoadingFallback />}>
+            <LazyHeavyWrapper onMounted={onHeavyMounted} />
+          </Suspense>
         )}
 
-        {testMode === 'lazy' && (
-          <Profiler id="LazyProfiler" onRender={handleProfilerRender}>
-            <Suspense fallback={<LoadingFallback />}>
-              <LazyHeavyComponent />
-            </Suspense>
-          </Profiler>
-        )}
-
-        {/* Key Lessons / Insights */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>🧠 Why you didn't see a difference before:</Text>
-
-          <Text style={styles.infoBullet}>
-            1️⃣ <Text style={styles.boldText}>Static Import Trap:</Text> If you write{' '}
-            <Text style={styles.codeText}>import HeavyComponent from '...'</Text> at the top of the file,
-            JavaScript bundles and evaluates it at launch, which cancels out any benefit of{' '}
-            <Text style={styles.codeText}>React.lazy()</Text>.
+        {/* ── EXPLANATION CARD ── */}
+        <View style={styles.explainCard}>
+          <Text style={styles.explainTitle}>
+            {isSlow ? '🤔 Why is this SLOW?' : '💡 Why is this FAST?'}
           </Text>
-
-          <Text style={styles.infoBullet}>
-            2️⃣ <Text style={styles.boldText}>Initial Render vs Deferred:</Text> In React Native, all JS
-            is local inside the APK. If you render a lazy component on frame 1, it starts loading on frame 1 anyway.
-            The real power of <Text style={styles.codeText}>lazy</Text> is for{' '}
-            <Text style={styles.boldText}>tabs, modals, and secondary screens</Text> so they don't slow down the initial app launch.
-          </Text>
-
-          <Text style={styles.infoBullet}>
-            3️⃣ <Text style={styles.boldText}>User-Perceived Speed (TTFP):</Text> Suspense lets you show
-            instant UI skeletons so the app feels fast, rather than staring at a frozen blank screen.
-          </Text>
+          {isSlow ? (
+            <>
+              <Text style={styles.explainText}>
+                • Module-level code (like heavy library inits, large JSON parsing, static requires)
+                runs <Text style={styles.boldText}>synchronously before the first frame</Text>.
+              </Text>
+              <Text style={styles.explainText}>
+                • <Text style={styles.boldText}>No fallback is possible</Text> — Suspense cannot
+                help when blocking happens before React even starts rendering.
+              </Text>
+              <Text style={styles.explainText}>
+                • The user's screen is blank/white the entire time.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.explainText}>
+                • <Text style={styles.boldText}>Nothing heavy runs at startup.</Text> The JS
+                thread is free to paint the initial screen immediately.
+              </Text>
+              <Text style={styles.explainText}>
+                • <Text style={styles.boldText}>React.lazy()</Text> tells the bundler to split
+                HeavyComponent into a separate chunk loaded on-demand.
+              </Text>
+              <Text style={styles.explainText}>
+                • <Text style={styles.boldText}>Suspense</Text> shows the fallback UI
+                the moment HeavyComponent is needed, keeping the app responsive.
+              </Text>
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+// Wrapper to fire callback when component mounts (slow path)
+const SlowHeavyWrapper = ({ onMounted }: { onMounted: () => void }) => {
+  const HeavyComp = require('./components/HeavyComponent').default;
+  useEffect(() => {
+    onMounted();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <HeavyComp />;
+};
+
+// Wrapper to fire callback when lazy component mounts (fast path)
+const LazyHeavyWrapper = ({ onMounted }: { onMounted: () => void }) => {
+  const HeavyComp = require('./components/HeavyComponent').default;
+  useEffect(() => {
+    onMounted();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <HeavyComp />;
+};
 
 export default function App() {
   return (
@@ -254,172 +302,122 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  scroll: { padding: 16, paddingBottom: 40 },
+
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    gap: 8,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+  badgeSlow: { backgroundColor: '#fef2f2', borderWidth: 1.5, borderColor: '#f87171' },
+  badgeFast: { backgroundColor: '#f0fdf4', borderWidth: 1.5, borderColor: '#4ade80' },
+  modeIcon: { fontSize: 20 },
+  modeLabel: { fontSize: 15, fontWeight: '800', color: '#0f172a', flex: 1 },
+
+  instructionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  header: {
-    marginBottom: 16,
+  instructionTitle: { fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 8 },
+  instructionStep: { fontSize: 12, color: '#475569', marginBottom: 5, lineHeight: 18 },
+
+  timingCard: {
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
+  timingCardSlow: { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
+  timingCardFast: { backgroundColor: '#f0fdf4', borderColor: '#86efac' },
+  timingTitle: { fontSize: 15, fontWeight: '700', color: '#1e293b', marginBottom: 10 },
+  timingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 4,
+  timingLabel: { fontSize: 12, color: '#475569', flex: 1 },
+  timingValue: { fontSize: 13, fontWeight: '800' },
+  slowValue: { color: '#dc2626' },
+  fastValue: { color: '#16a34a' },
+  warningBox: {
+    marginTop: 10,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc2626',
   },
-  card: {
-    backgroundColor: '#ffffff',
+  warningText: { fontSize: 12, color: '#7f1d1d', lineHeight: 18 },
+  successBox: {
+    marginTop: 10,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#16a34a',
+  },
+  successText: { fontSize: 12, color: '#14532d', lineHeight: 18 },
+
+  timelineCard: {
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    elevation: 2,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 6,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: '#64748b',
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  metricLabel: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  metricValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  metricHighlight: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#16a34a',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 8,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  syncButton: {
-    backgroundColor: '#dc2626',
-  },
-  lazyButton: {
-    backgroundColor: '#2563eb',
-  },
-  buttonActive: {
-    borderWidth: 2,
-    borderColor: '#000000',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  resetButton: {
-    marginTop: 6,
-    paddingVertical: 8,
-    alignItems: 'center',
+  timelineTitle: { fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 10 },
+  timelineLabel: { fontSize: 11, color: '#64748b', marginTop: 8, marginBottom: 4 },
+  barBg: {
+    height: 18,
     backgroundColor: '#f1f5f9',
-    borderRadius: 6,
+    borderRadius: 9,
+    overflow: 'hidden',
   },
-  resetButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  fallbackContainer: {
-    padding: 16,
-    borderRadius: 10,
+  barFill: { height: '100%', borderRadius: 9 },
+  barRed: { backgroundColor: '#ef4444' },
+  barOrange: { backgroundColor: '#f97316' },
+  barGreen: { backgroundColor: '#22c55e' },
+  barBlue: { backgroundColor: '#3b82f6' },
+  barCaption: { fontSize: 10, color: '#94a3b8', marginBottom: 4 },
+
+  fallback: {
+    padding: 24,
+    borderRadius: 12,
     backgroundColor: '#eff6ff',
     alignItems: 'center',
-    justifyContent: 'center',
     marginVertical: 10,
     borderWidth: 1,
     borderColor: '#bfdbfe',
   },
-  fallbackText: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#1d4ed8',
-    fontWeight: '600',
-  },
-  resultsCard: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
-  },
-  resultsTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#166534',
-    marginBottom: 8,
-  },
-  explanationBox: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-  },
-  explanationText: {
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 18,
-  },
-  infoCard: {
-    backgroundColor: '#ffffff',
+  fallbackText: { marginTop: 8, fontSize: 13, fontWeight: '700', color: '#1d4ed8' },
+  fallbackSub: { fontSize: 11, color: '#2563eb', marginTop: 4, textAlign: 'center' },
+
+  explainCard: {
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    marginTop: 6,
+    borderColor: '#e2e8f0',
+    marginTop: 4,
   },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
-  infoBullet: {
-    fontSize: 12,
-    color: '#475569',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  boldText: {
-    fontWeight: '700',
-    color: '#0f172a',
-  },
+  explainTitle: { fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 8 },
+  explainText: { fontSize: 12, color: '#475569', lineHeight: 18, marginBottom: 6 },
+  boldText: { fontWeight: '700', color: '#0f172a' },
   codeText: {
     fontFamily: 'monospace',
+    fontSize: 12,
+    backgroundColor: '#f1f5f9',
     color: '#b91c1c',
-    backgroundColor: '#fee2e2',
   },
 });
