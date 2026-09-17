@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, NativeModules, ActivityIndicator } from 'react-native';
 
 const { HeavyMathModule } = NativeModules;
@@ -8,10 +8,16 @@ interface Post {
   userId: number;
   title: string;
   body: string;
-}
+};
+
+// const postPromise = HeavyMathModule.generateData();
+// console.log("postPromise ==>>>", postPromise);
+
 
 const HeavyComponent = () => {
   const [posts, setPosts] = useState<Post[] | null>(null);
+
+  // const posts = use(postPromise);
 
   useEffect(() => {
     // Call the Native Module when the component mounts.
@@ -37,7 +43,7 @@ const HeavyComponent = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>📡 API Posts</Text>
         <Text style={styles.headerSub}>
-          {posts.length} posts fetched from JSONPlaceholder
+          {posts?.length || 0} posts fetched from JSONPlaceholder
         </Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>✅ Loaded via Suspense + fetch()</Text>
