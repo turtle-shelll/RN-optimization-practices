@@ -1,0 +1,12 @@
+{
+  "name": "deep-link-server",
+  "version": "1.0.0",
+  "description": "Local server to host .well-known files for Universal Links",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  }
+}

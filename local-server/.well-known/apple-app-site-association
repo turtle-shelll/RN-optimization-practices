@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID1234.org.reactjs.native.example.MyFirstApp",
+        "paths": [
+          "/*"
+        ]
+      }
+    ]
+  }
+}

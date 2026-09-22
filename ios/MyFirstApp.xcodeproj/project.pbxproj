@@ -26,6 +26,7 @@
 		7270837D05ADDCA6634B78C7 /* HeavyMathModule.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = MyFirstApp/HeavyMathModule.h; sourceTree = SOURCE_ROOT; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyFirstApp/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = MyFirstApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		E71EEFBD4FDC1967B7FEDBE5 /* MyFirstApp.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MyFirstApp/MyFirstApp.entitlements; sourceTree = SOURCE_ROOT; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F4D337E85B0E91737B7775CE /* HeavyMathModule.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MyFirstApp/HeavyMathModule.m; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -52,6 +53,7 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				7270837D05ADDCA6634B78C7 /* HeavyMathModule.h */,
 				F4D337E85B0E91737B7775CE /* HeavyMathModule.m */,
+				E71EEFBD4FDC1967B7FEDBE5 /* MyFirstApp.entitlements */,
 			);
 			name = MyFirstApp;
 			sourceTree = "<group>";
@@ -265,6 +267,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = MyFirstApp/MyFirstApp.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = MyFirstApp/Info.plist;
@@ -293,6 +296,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = MyFirstApp/MyFirstApp.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = MyFirstApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

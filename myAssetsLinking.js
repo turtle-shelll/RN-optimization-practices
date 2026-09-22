@@ -2,7 +2,10 @@ import { Linking } from 'react-native';
 
 const getLinkingConfig = (onIntercept) => ({
     // 1. Tell it what prefix to look for (matches the AndroidManifest)
-    prefixes: ['myfirstapp://'],
+    prefixes: [
+        'myfirstapp://',
+        'https://myfirstapp.loca.lt', // <--- Added for App Links & Universal Links
+    ],
 
     // Custom Subscription to intercept links manually!
     subscribe(listener) {

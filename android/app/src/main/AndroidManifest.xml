@@ -29,6 +29,13 @@
             <!-- <data android:scheme="myfirstapp" android:host="custom-path" /> -->
             <data android:scheme="myfirstapp" />
         </intent-filter>
+        <!-- 2. Android App Links (HTTPS) -->
+        <intent-filter android:autoVerify="false">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="myfirstapp.loca.lt" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>
