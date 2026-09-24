@@ -13,6 +13,7 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		786C9EBE4BD981B3CE0512A3 /* HeavyMathModule.m in Sources */ = {isa = PBXBuildFile; fileRef = F4D337E85B0E91737B7775CE /* HeavyMathModule.m */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		FB379C575962C898E76161F3 /* RCTCustomButtonManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 8C718321585D73A44E0B4D64 /* RCTCustomButtonManager.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,8 @@
 		7270837D05ADDCA6634B78C7 /* HeavyMathModule.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = MyFirstApp/HeavyMathModule.h; sourceTree = SOURCE_ROOT; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyFirstApp/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = MyFirstApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		869F8D96696E13654B9C7FB6 /* RCTCustomButtonManager.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = MyFirstApp/RCTCustomButtonManager.h; sourceTree = SOURCE_ROOT; };
+		8C718321585D73A44E0B4D64 /* RCTCustomButtonManager.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MyFirstApp/RCTCustomButtonManager.m; sourceTree = SOURCE_ROOT; };
 		E71EEFBD4FDC1967B7FEDBE5 /* MyFirstApp.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MyFirstApp/MyFirstApp.entitlements; sourceTree = SOURCE_ROOT; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F4D337E85B0E91737B7775CE /* HeavyMathModule.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MyFirstApp/HeavyMathModule.m; sourceTree = SOURCE_ROOT; };
@@ -54,6 +57,8 @@
 				7270837D05ADDCA6634B78C7 /* HeavyMathModule.h */,
 				F4D337E85B0E91737B7775CE /* HeavyMathModule.m */,
 				E71EEFBD4FDC1967B7FEDBE5 /* MyFirstApp.entitlements */,
+				869F8D96696E13654B9C7FB6 /* RCTCustomButtonManager.h */,
+				8C718321585D73A44E0B4D64 /* RCTCustomButtonManager.m */,
 			);
 			name = MyFirstApp;
 			sourceTree = "<group>";
@@ -255,6 +260,7 @@
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 				786C9EBE4BD981B3CE0512A3 /* HeavyMathModule.m in Sources */,
+				FB379C575962C898E76161F3 /* RCTCustomButtonManager.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

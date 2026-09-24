@@ -4,15 +4,15 @@ import React, { useState, useEffect } from 'react';
 const FooterComponent = () => {
     const [timeElapsed, setTimeElapsed] = useState(0);
 
-    useEffect(() => {
-        const start = Date.now();
-        // Update the timer rapidly (every 10ms)
-        const interval = setInterval(() => {
-            setTimeElapsed(Date.now() - start);
-        }, 100);
+    // useEffect(() => {
+    //     const start = Date.now();
+    //     // Update the timer rapidly (every 10ms)
+    //     const interval = setInterval(() => {
+    //         setTimeElapsed(Date.now() - start);
+    //     }, 100);
 
-        return () => clearInterval(interval);
-    }, []);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     return (
         <View style={styles.footer}>

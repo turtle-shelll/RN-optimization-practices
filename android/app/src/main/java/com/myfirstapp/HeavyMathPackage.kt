@@ -14,7 +14,7 @@ class HeavyMathPackage : ReactPackage {
 
     override fun createViewManagers(
         reactContext: ReactApplicationContext
-    ): List<ViewManager<View, ReactShadowNode<*>>> {
-        return emptyList()
+    ): List<ViewManager<*, *>> {
+        return listOf(CustomButtonManager())
     }
 }
